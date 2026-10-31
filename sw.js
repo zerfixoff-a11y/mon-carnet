@@ -1,4 +1,4 @@
-const V='carnet-v8',F=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const V='carnet-v9',F=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(F)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))));self.clients.claim()});
 self.addEventListener('fetch',e=>{
@@ -7,6 +7,29 @@ self.addEventListener('fetch',e=>{
 });
 
 // ---- rappels (lecture de la mémoire du carnet, même application fermée si le navigateur le permet)
+const REPS=['Jamais','Chaque jour','Chaque semaine','Chaque mois','Chaque année'];
+const RR={'Chaque jour':'DAILY','Chaque semaine':'WEEKLY','Chaque mois':'MONTHLY','Chaque année':'YEARLY'};
+const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const addDay=(s,n)=>{const d=new Date(s+'T12:00');d.setDate(d.getDate()+n);return isoD(d)};
+const dimo=(y,m)=>new Date(y,m+1,0).getDate();
+function repNext(date,rep,from){
+ if(!date||!rep||rep==='Jamais'||date>=from)return date;
+ const d=new Date(date+'T12:00'),f=new Date(from+'T12:00');
+ if(rep==='Chaque jour')return from;
+ if(rep==='Chaque semaine'){const days=Math.round((f-d)/864e5);return addDay(date,Math.ceil(days/7)*7)}
+ const day=d.getDate();let y=d.getFullYear(),m=d.getMonth(),c;
+ const mk=()=>new Date(y,m,Math.min(day,dimo(y,m)),12);
+ if(rep==='Chaque mois'){c=mk();while(c<f){m++;if(m>11){m=0;y++}c=mk()}}
+ else{c=mk();while(c<f){y++;c=mk()}}
+ return isoD(c);
+}
+function occIn(date,rep,a,b){
+ if(!date)return[];
+ if(!rep||rep==='Jamais')return date>=a&&date<=b?[date]:[];
+ const out=[];let x=repNext(date,rep,a),k=0;
+ while(x&&x<=b&&k++<400){out.push(x);x=repNext(date,rep,addDay(x,1))}
+ return out;
+}
 function carnetDue(S,last,now){
  const N=S.notify||{};if(!N.on||!(N.rem||[]).length)return[];
  const MON=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -16,7 +39,7 @@ function carnetDue(S,last,now){
  (S.items||[]).forEach(i=>{const c=cats[i.cat];if(!c||i.done)return;
   if(c.type==='birthday'||c.type==='person'){const d=+i.bd,m=MON.indexOf(i.bm);if(!d||m<0)return;
    [t0.getFullYear(),t0.getFullYear()+1].forEach(y=>ev.push({d:new Date(y,m,d),i,c,b:1}))}
-  else if(i.date){const p=i.date.split('-');ev.push({d:new Date(+p[0],+p[1]-1,+p[2]),i,c})}});
+  else if(i.date){occIn(i.date,i.rep,isoD(t0),addDay(isoD(t0),60)).forEach(x=>{const p=x.split('-');ev.push({d:new Date(+p[0],+p[1]-1,+p[2]),i,c})})}});
  const G={};
  ev.forEach(e=>{if(e.d<t0)return;N.rem.forEach(r=>{const hm=(r.t||'09:00').split(':');
   const f=new Date(e.d.getFullYear(),e.d.getMonth(),e.d.getDate()-(+r.d||0),+hm[0],+hm[1]).getTime();
