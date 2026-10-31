@@ -225,6 +225,14 @@ nav .ic.has{padding:0;overflow:hidden}
 .fsb{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:10px 22px;font-weight:700}
 .fsb.on{background:var(--goldbg);box-shadow:inset 0 0 0 2px var(--gold)}
 @media print{aside,.top,.fab,.bar,#toast,.warn{display:none!important}main{overflow:visible;padding:0}}
+.ibar{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--gold);border-radius:18px;padding:12px 14px;margin-bottom:16px;box-shadow:var(--shadow);flex-wrap:wrap}
+.ibar span{flex:1;font-weight:700;min-width:180px}
+.ibx{background:none;border:0;color:var(--mute);padding:8px;display:grid;place-items:center}
+.ibx .i{margin:0;width:22px;height:22px}
+.dchk{list-style:none;padding:0;margin:0 0 12px}
+.dchk li{display:flex;gap:8px;align-items:flex-start;padding:5px 0}
+.dchk .ok{color:#4f9a6a}.dchk .ko{color:var(--warn)}
+.dchk .i{margin:3px 0 0}
 </style>
 </head>
 <body>
@@ -245,6 +253,8 @@ nav .ic.has{padding:0;overflow:hidden}
 </aside>
 <div id="scrim"></div>
 <main><div class="wrap">
+ <div class="ibar" id="ibar" hidden><span id="ibtxt">Installez l’application sur cet appareil</span><button class="btn" id="ibtn">Installer</button><button class="ibx" id="ibx" aria-label="Fermer"></button></div>
+ <div class="ibar" id="nbar" hidden><span>Activez les notifications pour recevoir vos rappels</span><button class="btn" id="nbtn">Activer</button></div>
  <div class="warn" id="warn" hidden></div>
  <div class="top">
   <button id="menu" aria-label="Ouvrir le menu"></button>
@@ -309,7 +319,7 @@ nav .ic.has{padding:0;overflow:hidden}
 
 <script>
 const KEY='mon-carnet-v1';
-const VERSION='9';
+const VERSION='11';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -318,12 +328,13 @@ const dl=(d,o)=>new Date(d+'T12:00').toLocaleDateString('fr-FR',o||{weekday:'lon
 const tel=v=>`<a href="tel:${esc(String(v).replace(/\s/g,''))}">${ic('phone')}${esc(v)}</a>`;
 const chip=(v,c)=>v?`<span class="chip ${c||''}">${esc(v)}</span>`:'';
 const line=v=>v?`<div class="m">${v}</div>`:'';
-const I={"mic": "<path d=\"M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z\"/><path d=\"M19 10v2a7 7 0 0 1-14 0v-2M12 19v3\"/>", "chevl": "<path d=\"m15 18-6-6 6-6\"/>", "chevr": "<path d=\"m9 18 6-6-6-6\"/>","refresh": "<path d=\"M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M21 3v6h-6M3 21v-6h6\"/>","camera": "<path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/>","trash": "<path d=\"M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6\"/>","check": "<path d=\"M20 6 9 17l-5-5\"/>", "cake": "<path d=\"M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1M2 21h20M7 8v3M12 8v3M17 8v3M7 4h.01M12 4h.01M17 4h.01\"/>", "gift": "<path d=\"M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z\"/>", "car": "<path d=\"M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2M9 17h6\"/><circle cx=\"7\" cy=\"17\" r=\"2\"/><circle cx=\"17\" cy=\"17\" r=\"2\"/>", "paw": "<ellipse cx=\"9.5\" cy=\"4.5\" rx=\"1.5\" ry=\"2\"/><ellipse cx=\"14.5\" cy=\"4.5\" rx=\"1.5\" ry=\"2\"/><ellipse cx=\"18.5\" cy=\"9\" rx=\"1.5\" ry=\"2\"/><ellipse cx=\"5.5\" cy=\"9\" rx=\"1.5\" ry=\"2\"/><path d=\"M12 11c-3 0-5.5 3-5.5 5.5 0 2 1.5 3 3 3 1 0 1.5-.5 2.5-.5s1.5.5 2.5.5c1.5 0 3-1 3-3C17.5 14 15 11 12 11z\"/>", "plane": "<path d=\"M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z\"/>", "utensils": "<path d=\"M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7\"/>", "repeat": "<path d=\"m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3\"/>","plus": "<path d=\"M12 5v14M5 12h14\"/>", "menu": "<path d=\"M4 7h16M4 12h16M4 17h16\"/>", "calendar": "<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 10h18\"/>", "phone": "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z\"/>", "mail": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"m22 7-10 6L2 7\"/>", "pin": "<path d=\"M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>", "user": "<path d=\"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>", "hourglass": "<path d=\"M5 22h14M5 2h14M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2\"/>", "alert": "<path d=\"M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z\"/><path d=\"M12 9v4M12 17h.01\"/>", "heart": "<path d=\"M12 21s-8-4.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.5-8 11-8 11z\"/>", "file": "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8\"/>", "bank": "<path d=\"M3 21h18M4 10l8-6 8 6M6 10v8M10 10v8M14 10v8M18 10v8\"/>", "euro": "<path d=\"M18 7c-1.2-1.5-3-2-4.5-2a6 6 0 0 0 0 14c1.5 0 3.3-.5 4.5-2M4 10h10M4 14h10\"/>", "cart": "<circle cx=\"9\" cy=\"20\" r=\"1\"/><circle cx=\"18\" cy=\"20\" r=\"1\"/><path d=\"M1 2h3l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 6H5\"/>", "home": "<path d=\"M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6\"/>", "pill": "<path d=\"M10.5 20.5 3.5 13.5a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7zM8.5 8.5l7 7\"/>", "note": "<path d=\"M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z\"/>", "folder": "<path d=\"M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>", "grid": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/>", "download": "<path d=\"M12 3v12M7 10l5 5 5-5M5 21h14\"/>", "upload": "<path d=\"M12 15V3M7 8l5-5 5 5M5 21h14\"/>", "save": "<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8\"/>", "book": "<path d=\"M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5\"/>", "star": "<path d=\"M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z\"/>"};
+const I={"x": "<path d=\"M18 6 6 18M6 6l12 12\"/>","mic": "<path d=\"M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z\"/><path d=\"M19 10v2a7 7 0 0 1-14 0v-2M12 19v3\"/>", "chevl": "<path d=\"m15 18-6-6 6-6\"/>", "chevr": "<path d=\"m9 18 6-6-6-6\"/>","refresh": "<path d=\"M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M21 3v6h-6M3 21v-6h6\"/>","camera": "<path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/>","trash": "<path d=\"M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6\"/>","check": "<path d=\"M20 6 9 17l-5-5\"/>", "cake": "<path d=\"M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1M2 21h20M7 8v3M12 8v3M17 8v3M7 4h.01M12 4h.01M17 4h.01\"/>", "gift": "<path d=\"M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z\"/>", "car": "<path d=\"M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2M9 17h6\"/><circle cx=\"7\" cy=\"17\" r=\"2\"/><circle cx=\"17\" cy=\"17\" r=\"2\"/>", "paw": "<ellipse cx=\"9.5\" cy=\"4.5\" rx=\"1.5\" ry=\"2\"/><ellipse cx=\"14.5\" cy=\"4.5\" rx=\"1.5\" ry=\"2\"/><ellipse cx=\"18.5\" cy=\"9\" rx=\"1.5\" ry=\"2\"/><ellipse cx=\"5.5\" cy=\"9\" rx=\"1.5\" ry=\"2\"/><path d=\"M12 11c-3 0-5.5 3-5.5 5.5 0 2 1.5 3 3 3 1 0 1.5-.5 2.5-.5s1.5.5 2.5.5c1.5 0 3-1 3-3C17.5 14 15 11 12 11z\"/>", "plane": "<path d=\"M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z\"/>", "utensils": "<path d=\"M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3zm0 0v7\"/>", "repeat": "<path d=\"m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3\"/>","plus": "<path d=\"M12 5v14M5 12h14\"/>", "menu": "<path d=\"M4 7h16M4 12h16M4 17h16\"/>", "calendar": "<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M16 3v4M8 3v4M3 10h18\"/>", "phone": "<path d=\"M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z\"/>", "mail": "<rect x=\"2\" y=\"4\" width=\"20\" height=\"16\" rx=\"2\"/><path d=\"m22 7-10 6L2 7\"/>", "pin": "<path d=\"M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0z\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/>", "user": "<path d=\"M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>", "hourglass": "<path d=\"M5 22h14M5 2h14M17 22v-4.2a2 2 0 0 0-.6-1.4L12 12l-4.4 4.4a2 2 0 0 0-.6 1.4V22M7 2v4.2a2 2 0 0 0 .6 1.4L12 12l4.4-4.4a2 2 0 0 0 .6-1.4V2\"/>", "alert": "<path d=\"M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z\"/><path d=\"M12 9v4M12 17h.01\"/>", "heart": "<path d=\"M12 21s-8-4.5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6.5-8 11-8 11z\"/>", "file": "<path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><path d=\"M14 2v6h6M8 13h8M8 17h8\"/>", "bank": "<path d=\"M3 21h18M4 10l8-6 8 6M6 10v8M10 10v8M14 10v8M18 10v8\"/>", "euro": "<path d=\"M18 7c-1.2-1.5-3-2-4.5-2a6 6 0 0 0 0 14c1.5 0 3.3-.5 4.5-2M4 10h10M4 14h10\"/>", "cart": "<circle cx=\"9\" cy=\"20\" r=\"1\"/><circle cx=\"18\" cy=\"20\" r=\"1\"/><path d=\"M1 2h3l2.7 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L22 6H5\"/>", "home": "<path d=\"M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6\"/>", "pill": "<path d=\"M10.5 20.5 3.5 13.5a4.95 4.95 0 0 1 7-7l7 7a4.95 4.95 0 0 1-7 7zM8.5 8.5l7 7\"/>", "note": "<path d=\"M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z\"/>", "folder": "<path d=\"M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>", "grid": "<rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/>", "download": "<path d=\"M12 3v12M7 10l5 5 5-5M5 21h14\"/>", "upload": "<path d=\"M12 15V3M7 8l5-5 5 5M5 21h14\"/>", "save": "<path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8\"/>", "book": "<path d=\"M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5\"/>", "star": "<path d=\"M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z\"/>"};
 const ic=(n,z)=>`<svg class="i" viewBox="0 0 24 24" aria-hidden="true"${z?` style="width:${z}px;height:${z}px"`:''}>${I[n]||I.folder}</svg>`;
 const TI={medical:'heart',rdv:'calendar',doc:'file',admin:'bank',money:'euro',shop:'cart',home:'home',contact:'phone',med:'pill',note:'note',libre:'folder',person:'user',birthday:'cake',car:'car',pet:'paw',gift:'gift',trip:'plane',recipe:'utensils',contract:'repeat'};
 const PICK=['heart','calendar','file','bank','euro','cart','home','phone','pill','note','folder','book','star','mail','user','cake','gift','car','paw','plane','utensils','repeat'];
 const NOTE={k:'note',l:'Notes',t:'area'};
 // Chaque type de catégorie a ses propres champs et son propre affichage
+const pad2=n=>String(n).padStart(2,'0');
 const REPS=['Jamais','Chaque jour','Chaque semaine','Chaque mois','Chaque année'];
 const RR={'Chaque jour':'DAILY','Chaque semaine':'WEEKLY','Chaque mois':'MONTHLY','Chaque année':'YEARLY'};
 const isoD=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -380,9 +391,9 @@ const T={
  contact:{n:'Contact',tl:'Nom (ex : Dr Martin)',nd:1,
   f:[{k:'role',l:'Rôle (médecin, voisin…)'},{k:'tel',l:'Téléphone',t:'tel'},{k:'mail',l:'E-mail',t:'email'},{k:'addr',l:'Adresse'}],
   m:i=>[line(chip(i.role)),line(i.tel?tel(i.tel):''),line(i.mail?`<a href="mailto:${esc(i.mail)}">${ic('mail')}${esc(i.mail)}</a>`:''),line(i.addr?ic('pin')+esc(i.addr):'')]},
- med:{n:'Médicament',tl:'Médicament (ex : Doliprane)',nd:1,
-  f:[{k:'dose',l:'Dose',ph:'ex : 1 comprimé'},{k:'when',l:'Quand',t:'multi',o:['Matin','Midi','Soir','Coucher']},{k:'stock',l:'Il en reste (boîtes ou comprimés)',t:'number'},NOTE],
-  m:i=>[line(chip(i.dose)+(i.when||[]).map(w=>chip(w)).join('')),line(i.stock!==''&&i.stock!=null?'Reste : '+esc(i.stock):''),line(esc(i.note))]},
+ med:{n:'Médicament',tl:'Médicament (ex : Doliprane)',nd:1,nocal:1,
+  f:[{k:'dose',l:'Dose',ph:'ex : 1 comprimé'},{k:'t1',l:'Heure de prise n°1',t:'time',def:'08:00'},{k:'t2',l:'Heure de prise n°2 (facultatif)',t:'time'},{k:'t3',l:'Heure de prise n°3 (facultatif)',t:'time'},{k:'t4',l:'Heure de prise n°4 (facultatif)',t:'time'},{k:'rep',l:'Répéter',t:'sel',o:['Chaque jour','Chaque semaine','Chaque mois']},{k:'date',l:'À partir du',t:'date',def:'today'},{k:'end',l:'Jusqu’au (facultatif)',t:'date'},{k:'stock',l:'Il en reste (boîtes ou comprimés)',t:'number'},NOTE],
+  m:i=>[line(chip(i.dose)+(i.when||[]).map(w=>chip(w)).join('')),line([i.t1,i.t2,i.t3,i.t4].filter(Boolean).map(x=>ic('clock')+esc(x)).join('   ')),line(i.end?'Jusqu’au '+dl(i.end):''),line(i.stock!==''&&i.stock!=null?'Reste : '+esc(i.stock):''),line(esc(i.note))]},
  note:{n:'Note libre',tl:'Titre',nd:1,f:[{k:'note',l:'Texte',t:'area'}],m:i=>[line(esc(i.note).replace(/\n/g,'<br>'))]},
  libre:{n:'Fiche simple',tl:'Quoi ?',dn:'Fait',
   f:[{k:'where',l:'Où c’est rangé ?'},{k:'date',l:'Date',t:'date'},NOTE],
@@ -415,6 +426,9 @@ const T={
   right:i=>i.amt!==''&&i.amt!=null?`<div class="amt">${esc(String(i.amt).replace('.',','))} €<small style="font:400 .75rem var(--sans);color:var(--mute)">/mois</small></div>`:''}
 };
 ['medical','rdv','admin','money','home','car','pet','libre'].forEach(k=>T[k].f.splice(T[k].f.length-1,0,{k:'rep',l:'Répéter',t:'sel',o:REPS}));
+const ALERTS=[['0','À l’heure pile'],['10','10 minutes avant'],['30','30 minutes avant'],['60','1 heure avant'],['1440','La veille, à la même heure'],['-1','Pas de rappel']];
+const ALARMT=['medical','rdv','admin','money','home','car','pet','trip','contract','libre','birthday','person','med'];
+ALARMT.filter(k=>k!=='med').forEach(k=>{const f=T[k].f,add=[];if(!f.some(x=>x.k==='time'))add.push({k:'time',l:'Heure du rappel (9 h si vide)',t:'time'});add.push({k:'al',l:'Me prévenir',t:'sel',o:ALERTS});f.splice(f.length-1,0,...add)});
 const DEF=[['heart','Médical','medical'],['calendar','Rendez-vous','rdv'],['file','Documents et classeurs','doc'],['bank','Administratif','admin'],['euro','Argent et factures','money'],['cart','Courses','shop'],['home','Maison','home'],['phone','Contacts utiles','contact'],['pill','Médicaments','med'],['note','Notes en vrac','note'],['cake','Anniversaires','birthday'],['car','Voiture','car'],['paw','Animaux','pet'],['gift','Idées cadeaux','gift'],['plane','Voyages et sorties','trip'],['utensils','Recettes','recipe'],['repeat','Contrats et abonnements','contract'],['user','Mes proches','person']];
 let S,ready=false,lsOK=false,idbOK=null;
 const fresh=()=>({cats:DEF.map(([icon,name,type],i)=>({id:'c'+i,icon,name,type})),items:[],cur:'all',ts:0});
@@ -423,7 +437,8 @@ function fix(){
  if(!S.theme)S.theme={};
  if(!S.ui)S.ui={fs:1};
  if(!S.urg)S.urg={};
- if(!S.notify)S.notify={on:false,rem:[{d:1,t:'09:00'}]};
+ if(!S.notify)S.notify={on:false};
+ if(!S.notify.sound)S.notify.sound='carillon';
  if(!S.profile)S.profile={first:S.name||'',last:'',email:'',asked:!!S.name};
  DEF.forEach(([icon,name,type],i)=>{const id='c'+i;if(!S.cats.some(c=>c.id===id)&&!(S.gone||[]).includes(id))S.cats.push({id,icon,name,type})});
  S.cats.forEach(c=>{if(!c.type)c.type=(DEF[+String(c.id).slice(1)]||[])[2]||'libre';if(!I[c.icon])c.icon=TI[c.type]||'folder'});
@@ -457,11 +472,11 @@ async function init(){
  try{a=JSON.parse(localStorage.getItem(KEY))}catch(e){}
  try{b=await Promise.race([idbGet(),new Promise(r=>setTimeout(()=>r(null),1500))])}catch(e){}
  S=(b&&b.cats&&(!a||!a.cats||(b.ts||0)>(a.ts||0)))?b:a;
- fix();ready=true;applyTheme();
+ fix();ready=true;applyTheme();showInstall(!standalone());
  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
  render();
  if(!S.profile.asked)setTimeout(()=>openProfile(true),350);
- setInterval(notifyCheck,30000);notifyCheck();
+ setInterval(notifyCheck,15000);notifyCheck();
 }
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2200)}
 const cat=id=>S.cats.find(c=>c.id===id);
@@ -478,7 +493,7 @@ function cardHTML(i0,k,showCat){
  const tag=showCat?`<div class="m"><span class="chip">${ic(ct.icon)}${esc(ct.name)}</span></div>`:'';
  return `<div class="item ${i.done?'done':''} ${late?'late':''}" data-i="${i.id}" style="--ac:${acc(ct)};--d:${Math.min(k,10)*.04}s">
   ${t.lead?t.lead(i):''}${t.nd?'':`<input type="checkbox" ${i.done?'checked':''} aria-label="${t.dn||'Fait'}" title="${t.dn||'Fait'}">`}
-  <div class="body" tabindex="0"><div class="t">${esc(i.title)}</div>${tag}${t.m(i).join('')}${i.rep&&i.rep!=='Jamais'?`<div class="m">${ic('repeat')}${esc(i.rep)}</div>`:''}${late?`<div class="m" style="color:var(--warn);font-weight:700">${ic('alert')}Date dépassée</div>`:''}</div>
+  <div class="body" tabindex="0"><div class="t">${esc(i.title)}</div>${tag}${t.m(i).join('')}${i.time&&!['rdv','med'].includes(ct.type)?`<div class="m">${ic('clock')}${esc(i.time)}</div>`:''}${i.rep&&i.rep!=='Jamais'?`<div class="m">${ic('repeat')}${esc(i.rep)}</div>`:''}${late?`<div class="m" style="color:var(--warn);font-weight:700">${ic('alert')}Date dépassée</div>`:''}</div>
   ${t.right?t.right(i):''}<button class="trash" aria-label="Supprimer cette fiche" title="Supprimer">${ic('trash')}</button></div>`}
 function renderHome(){
  const open=S.items.filter(i=>{const t=typ(cat(i.cat));return cat(i.cat)&&!i.done&&ed(i)&&(!t.nd||t.eff)});
@@ -505,6 +520,7 @@ function render(){
  $('nav').innerHTML=`<button data-c="all" class="${S.cur==='all'?'on':''}"><span class="ic">${ic('home')}</span>Accueil<span class="n"></span></button><button data-c="agenda" class="${S.cur==='agenda'?'on':''}"><span class="ic">${ic('calendar')}</span>Calendrier<span class="n"></span></button><button data-c="urgence" class="${S.cur==='urgence'?'on':''}"><span class="ic">${ic('alert')}</span>Urgence<span class="n"></span></button><button data-c="profile" class="${S.cur==='profile'?'on':''}"><span class="ic ${P.photo?'has':''}">${P.photo?`<img class="navimg" src="${P.photo}" alt="">`:ic('user')}</span>Mon profil<span class="n"></span></button>`+
   S.cats.map(c=>`<button data-c="${c.id}" class="${S.cur===c.id?'on':''}"><span class="ic">${ic(c.icon)}</span>${esc(c.name)}<span class="n">${typ(c).nd?'':(S.items.filter(i=>i.cat===c.id&&!i.done).length||'')}</span></button>`).join('');
  ['hero','tiles','soon'].forEach(id=>$(id).hidden=!home);
+ $('nbar').hidden=!('Notification' in window&&!S.notify.on&&Notification.permission!=='denied'&&S.items.some(i=>{const c=cat(i.cat);return c&&ALARMT.includes(c.type)&&!i.done&&i.al!=='-1'}));
  $('head').hidden=home||prof||calv||urgv;$('list').hidden=home||prof||calv||urgv;$('prof').hidden=!prof;$('cal').hidden=!calv;$('urg').hidden=!urgv;
  $('mark').innerHTML=P.photo?`<img src="${P.photo}" alt="">`:ic('book');$('cam').innerHTML=ic('camera');
  $('quick').hidden=!(c&&c.type==='shop'&&!q);
@@ -538,9 +554,9 @@ let editing=null;
 function buildFields(catId,vals){
  const t=typ(cat(catId));vals=vals||{};
  let h=`<label for="f_title">${t.tl}</label><div class="mw"><input id="f_title" required value="${esc(vals.title)}">${micB('f_title')}</div>`;
- t.f.forEach(f=>{const v=vals[f.k];
+ t.f.forEach(f=>{let v=vals[f.k];if(v===undefined&&!vals.id&&f.def)v=f.def==='today'?today:f.def;
   if(f.t==='area')h+=`<label for="f_${f.k}">${f.l}</label><div class="mw"><textarea id="f_${f.k}" rows="3">${esc(v)}</textarea>${micB('f_'+f.k)}</div>`;
-  else if(f.t==='sel')h+=`<label for="f_${f.k}">${f.l}</label><select id="f_${f.k}">${f.o.map(o=>`<option ${o===v?'selected':''}>${o}</option>`).join('')}</select>`;
+  else if(f.t==='sel')h+=`<label for="f_${f.k}">${f.l}</label><select id="f_${f.k}">${f.o.map(o=>{const val=Array.isArray(o)?o[0]:o,lab=Array.isArray(o)?o[1]:o;return `<option value="${esc(val)}" ${String(val)===String(v)?'selected':''}>${esc(lab)}</option>`}).join('')}</select>`;
   else if(f.t==='multi')h+=`<label>${f.l}</label><div class="chk">${f.o.map(o=>`<label><input type="checkbox" name="f_${f.k}" value="${o}" ${(v||[]).includes(o)?'checked':''}>${o}</label>`).join('')}</div>`;
   else h+=`<label for="f_${f.k}">${f.l}</label><input id="f_${f.k}" type="${f.t==='number'?'number':f.t||'text'}" ${f.t==='number'?'step="any" inputmode="decimal"'+(f.max?` min="${f.min}" max="${f.max}"`:''):''} placeholder="${esc(f.ph||'')}" value="${esc(v)}">`});
  $('fields').innerHTML=h;
@@ -627,33 +643,57 @@ $('fProf').onsubmit=()=>{Object.assign(S.profile,{first:$('p_first').value.trim(
 $('pLater').onclick=()=>{S.profile.asked=true;$('dProf').close();render()};
 $('dProf').addEventListener('cancel',()=>{S.profile.asked=true;save()});
 function carnetDue(S,last,now){
- const N=S.notify||{};if(!N.on||!(N.rem||[]).length)return[];
+ const N=S.notify||{};if(!N.on)return[];
+ if(now-last>3*864e5)last=now-3*864e5;
+ const NT={medical:'Médical',rdv:'Rendez-vous',admin:'Démarche',money:'Facture',home:'Maison',car:'Voiture',pet:'Animal',trip:'Voyage',contract:'Contrat',birthday:'Anniversaire',person:'Anniversaire',med:'Médicament',libre:null};
  const MON=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
  const cats={};(S.cats||[]).forEach(c=>cats[c.id]=c);
- const t0=new Date(now);t0.setHours(0,0,0,0);
- const ev=[];
- (S.items||[]).forEach(i=>{const c=cats[i.cat];if(!c||i.done)return;
+ const a=addDay(isoD(new Date(last)),-1),b=addDay(isoD(new Date(now)),2),out=[];
+ (S.items||[]).forEach(i=>{const c=cats[i.cat];if(!c||!(c.type in NT)||i.done)return;
+  const al=(i.al===undefined||i.al===''||i.al===null)?0:+i.al;if(al<0)return;
+  const med=c.type==='med';let days=[];
   if(c.type==='birthday'||c.type==='person'){const d=+i.bd,m=MON.indexOf(i.bm);if(!d||m<0)return;
-   [t0.getFullYear(),t0.getFullYear()+1].forEach(y=>ev.push({d:new Date(y,m,d),i,c,b:1}))}
-  else if(i.date){occIn(i.date,i.rep,isoD(t0),addDay(isoD(t0),60)).forEach(x=>{const p=x.split('-');ev.push({d:new Date(+p[0],+p[1]-1,+p[2]),i,c})})}});
- const G={};
- ev.forEach(e=>{if(e.d<t0)return;N.rem.forEach(r=>{const hm=(r.t||'09:00').split(':');
-  const f=new Date(e.d.getFullYear(),e.d.getMonth(),e.d.getDate()-(+r.d||0),+hm[0],+hm[1]).getTime();
-  if(f>last&&f<=now){const k=f+'|'+r.d;(G[k]=G[k]||{f,d:+r.d||0,l:[]}).l.push(e)}})});
- return Object.keys(G).map(k=>{const g=G[k],n=g.l.length,lab=g.d===0?'Aujourd’hui':g.d===1?'Demain':'Dans '+g.d+' jours',late=now-g.f>20*60000;
-  const lines=g.l.map(e=>{const i=e.i;if(e.b){const age=+i.by>1900?' ('+(e.d.getFullYear()-i.by)+' ans)':'';return 'Anniversaire de '+i.title+age}
-   return i.title+(i.time?' à '+i.time:'')+' · '+e.c.name});
-  return{tag:'carnet-'+k,title:(late?'Rappel manqué · ':'')+lab+(n>1?' : '+n+' choses':''),body:lines.join('\n')}})}
+   for(let y=+a.slice(0,4);y<=+b.slice(0,4);y++){const x=y+'-'+pad2(m+1)+'-'+pad2(d);if(x>=a&&x<=b)days.push(x)}}
+  else if(med)days=occIn(i.date||a,i.rep||'Chaque jour',a,b).filter(x=>!i.end||x<=i.end);
+  else days=occIn(i.date,i.rep,a,b);
+  let times=med?[i.t1,i.t2,i.t3,i.t4].filter(Boolean):[i.time||'09:00'];
+  if(med&&!times.length)times=['08:00'];
+  days.forEach(x=>{const p=x.split('-');times.forEach(tm=>{const hm=tm.split(':');
+   const ev=new Date(+p[0],+p[1]-1,+p[2],+hm[0],+hm[1]).getTime(),f=ev-(med?0:al)*60000;
+   if(f>last&&f<=now){
+    let name=i.title||'';
+    if(med&&i.dose)name+=' · '+i.dose;
+    if(c.type==='birthday'||c.type==='person'){const age=+i.by>1900?+x.slice(0,4)-i.by:0;if(age)name+=' ('+age+' ans)'}
+    let when=al===1440&&!med?'Demain à '+tm:(al>0&&!med?'Dans '+(al>=60?(al/60)+' h':al+' min')+' · à '+tm:tm);
+    if(now-f>20*60000)when='Manqué · '+when;
+    out.push({f,tag:'carnet-'+i.id+'-'+f,title:NT[c.type]||c.name,body:name+'\n'+when})}})});
+ });
+ return out.sort((u,v)=>u.f-v.f);
+}
 
 // ---------- notifications
 const kvGet=k=>idb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
 const kvSet=(k,v)=>idb().then(db=>new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=()=>rej(t.error)}));
 async function getLast(){let v=null;try{v=await kvGet('nlast')}catch(e){}if(!v){try{v=+localStorage.getItem('carnet-nlast')||0}catch(e){}}return v}
 async function setLast(v){try{localStorage.setItem('carnet-nlast',v)}catch(e){}try{await kvSet('nlast',v)}catch(e){}}
+let AC;
+const SND={carillon:[[880,0],[1175,.2],[1568,.4]],cloche:[[660,0],[660,.6]],bip:[[1000,0],[1000,.3],[1000,.6]],alarme:[[900,0],[700,.25],[900,.5],[700,.75],[900,1],[700,1.25]]};
+const SONS=[['carillon','Carillon'],['cloche','Cloche'],['bip','Bip'],['alarme','Alarme'],['defaut','Son du téléphone'],['aucun','Aucun son']];
+function playSound(k){
+ if(!SND[k])return;
+ try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+  SND[k].forEach(([f,t])=>{const o=AC.createOscillator(),g=AC.createGain(),T0=AC.currentTime+t;o.type=k==='cloche'?'sine':'triangle';o.frequency.value=f;
+   g.gain.setValueAtTime(.0001,T0);g.gain.linearRampToValueAtTime(.4,T0+.02);g.gain.exponentialRampToValueAtTime(.001,T0+(k==='cloche'?.9:.25));
+   o.connect(g);g.connect(AC.destination);o.start(T0);o.stop(T0+1)})}catch(e){}
+}
+document.addEventListener('click',()=>{try{AC=AC||new (window.AudioContext||window.webkitAudioContext)()}catch(e){}},{once:true});
 async function showN(n){
+ const snd=(S.notify&&S.notify.sound)||'carillon',vis=document.visibilityState==='visible',custom=!!SND[snd]&&vis;
+ if(custom)playSound(snd);
+ const o={body:n.body,icon:'icon-192.png',badge:'icon-192.png',tag:n.tag,renotify:true,requireInteraction:true,vibrate:[300,150,300,150,300],silent:snd==='aucun'||custom,data:{url:'./index.html'}};
  try{const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();
-  if(reg){await reg.showNotification(n.title,{body:n.body,icon:'icon-192.png',badge:'icon-192.png',tag:n.tag,data:{url:'./index.html'}});return}}catch(e){}
- try{new Notification(n.title,{body:n.body,icon:'icon-192.png'})}catch(e){}
+  if(reg){await reg.showNotification(n.title,o);return}}catch(e){}
+ try{new Notification(n.title,o)}catch(e){}
 }
 async function notifyCheck(){
  if(!ready||!S.notify||!S.notify.on||!('Notification' in window)||Notification.permission!=='granted')return;
@@ -673,35 +713,40 @@ async function setNotifOn(v){
  }else N.on=false;
  render();toast(v?'Rappels activés':'Rappels désactivés');
 }
-const RD=[[0,'Le jour même'],[1,'La veille'],[2,'2 jours avant'],[3,'3 jours avant'],[7,'1 semaine avant'],[14,'2 semaines avant']];
 function notifHTML(){
  const N=S.notify,perm=('Notification' in window)?Notification.permission:'none';
  const pt=perm==='granted'?'Notifications autorisées sur cet appareil.':perm==='denied'?'Notifications bloquées : réactivez-les dans les réglages du navigateur.':perm==='none'?'Ce navigateur ne gère pas les notifications. Sur iPhone, installez d’abord l’application.':'Pas encore autorisées : elles seront demandées à l’activation.';
  return `<div class="sec">Rappels</div><div class="panel">
- <label class="tog"><input type="checkbox" id="nOn" ${N.on?'checked':''}>Activer les rappels</label>
+ <label class="tog"><input type="checkbox" id="nOn" ${N.on?'checked':''}>Activer les notifications</label>
  <p class="m">${pt}</p>
- <div class="m"><b>Me prévenir :</b></div>
- ${N.rem.map((r,k)=>`<div class="nrow" data-k="${k}"><select data-nd aria-label="Quand">${RD.map(([v,l])=>`<option value="${v}" ${v==r.d?'selected':''}>${l}</option>`).join('')}</select><span>à</span><input type="time" data-nt value="${esc(r.t)}" aria-label="Heure"><button class="trash" data-nrm="${k}" aria-label="Retirer ce rappel">${ic('trash')}</button></div>`).join('')}
- <div class="bar"><button class="btn ghost" id="nAddRow">${ic('plus')}Ajouter un rappel</button><button class="btn ghost" id="nTest">Tester</button></div>
- <p class="m" style="margin-top:12px">Tous les rendez-vous, échéances et anniversaires datés sont regroupés dans une seule notification à l’heure choisie. Les rappels arrivent à l’heure quand l’application est ouverte ou active en arrière-plan ; fermée, le téléphone peut les retarder. Pour être sûre de les recevoir à la minute près, ajoutez-les à l’agenda du téléphone :</p>
+ <p class="m">Plus rien à programmer ici : chaque fiche qui a une date ou une heure vous prévient toute seule, avec le type, le nom et l’heure. Pour un médicament, indiquez jusqu’à 4 heures de prise par jour ; pour un rendez-vous ou un anniversaire, réglez l’heure et « Me prévenir » directement dans la fiche.</p>
+ <label for="nSound">Son</label>
+ <select id="nSound" style="width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink)">${SONS.map(([v,l])=>`<option value="${v}" ${v===(N.sound||'carillon')?'selected':''}>${l}</option>`).join('')}</select>
+ <div class="bar"><button class="btn ghost" id="nTest">Tester une notification</button></div>
+ <p class="m" style="margin-top:12px">Le son choisi se joue quand l’application est ouverte. Sinon, c’est la sonnerie de notification du téléphone (réglable dans ses paramètres), car un site ne peut pas imposer un son. La notification reste affichée jusqu’à ce qu’on la touche, mais un site ne peut pas la rendre impossible à effacer. Application fermée, le téléphone peut la retarder : pour une alarme exacte, ajoutez tout à l’agenda du téléphone.</p>
  <div class="bar"><button class="btn" id="nIcs">${ic('calendar')}Exporter vers mon agenda</button></div></div>`;
 }
 function exportICS(){
- const rems=(S.notify&&S.notify.rem&&S.notify.rem.length)?S.notify.rem:[{d:1,t:'09:00'}];
  const e=v=>String(v==null?'':v).replace(/\\/g,'\\\\').replace(/[,;]/g,m=>'\\'+m).replace(/\r?\n/g,'\\n');
+ const dur=M=>{const A=Math.abs(M);return(M<0?'-':'')+'P'+Math.floor(A/1440)+'DT'+Math.floor(A%1440/60)+'H'+A%60+'M'};
  const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');
  const out=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Mon carnet//FR','CALSCALE:GREGORIAN'];let n=0;
- S.items.forEach(i=>{const c=cat(i.cat);if(!c||i.done)return;const b=!!typ(c).eff,date=b?bNext(i):(i.rep&&i.rep!=='Jamais'?repNext(i.date,i.rep,today):i.date);if(!date)return;
-  const tm=(c.type==='rdv'&&i.time)?i.time:'',ymd=date.replace(/-/g,'');
-  out.push('BEGIN:VEVENT','UID:'+i.id+'@mon-carnet','DTSTAMP:'+stamp);
-  if(tm)out.push('DTSTART:'+ymd+'T'+tm.replace(':','')+'00','DURATION:PT1H');else out.push('DTSTART;VALUE=DATE:'+ymd);
-  out.push('SUMMARY:'+e((b?'Anniversaire : ':'')+i.title));
-  const desc=[c.name,i.where,i.who,i.note].filter(Boolean).join(' · ');if(desc)out.push('DESCRIPTION:'+e(desc));
-  if(b)out.push('RRULE:FREQ=YEARLY');else if(RR[i.rep])out.push('RRULE:FREQ='+RR[i.rep]);
-  const em=tm?(+tm.split(':')[0]*60+ +tm.split(':')[1]):0;
-  rems.forEach(r=>{const hm=(r.t||'09:00').split(':'),M=(+r.d||0)*1440-(+hm[0]*60+ +hm[1])+em,A=Math.abs(M);
-   out.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+e(i.title),'TRIGGER:'+(M>=0?'-':'')+'P'+Math.floor(A/1440)+'DT'+Math.floor(A%1440/60)+'H'+A%60+'M','END:VALARM')});
-  out.push('END:VEVENT');n++});
+ S.items.forEach(i=>{const c=cat(i.cat);if(!c||i.done||!ALARMT.includes(c.type))return;
+  const med=c.type==='med',b=!!typ(c).eff,al=(i.al===undefined||i.al===''||i.al==null)?0:+i.al;
+  let date,rule='';
+  if(b){date=bNext(i);rule='FREQ=YEARLY'}
+  else if(med){date=(i.date&&i.date>today)?i.date:today;rule='FREQ='+(RR[i.rep]||'DAILY')+(i.end?';UNTIL='+i.end.replace(/-/g,'')+'T235959':'')}
+  else{date=(i.rep&&i.rep!=='Jamais')?repNext(i.date,i.rep,today):i.date;if(RR[i.rep])rule='FREQ='+RR[i.rep]}
+  if(!date)return;
+  let times=med?[i.t1,i.t2,i.t3,i.t4].filter(Boolean):[i.time||''];if(med&&!times.length)times=['08:00'];
+  times.forEach((tm,k)=>{
+   out.push('BEGIN:VEVENT','UID:'+i.id+'-'+k+'@mon-carnet','DTSTAMP:'+stamp);
+   if(tm)out.push('DTSTART:'+date.replace(/-/g,'')+'T'+tm.replace(':','')+'00','DURATION:PT15M');else out.push('DTSTART;VALUE=DATE:'+date.replace(/-/g,''));
+   out.push('SUMMARY:'+e((b?'Anniversaire : ':med?'Médicament : ':'')+i.title+(med&&i.dose?' · '+i.dose:'')));
+   const desc=[c.name,i.where,i.who,i.note].filter(Boolean).join(' · ');if(desc)out.push('DESCRIPTION:'+e(desc));
+   if(rule)out.push('RRULE:'+rule);
+   if(al>=0||med){const M=med?0:al;out.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+e(i.title),'TRIGGER:'+(tm?dur(-M):dur(540-M)),'END:VALARM')}
+   out.push('END:VEVENT');n++})});
  out.push('END:VCALENDAR');
  if(!n){toast('Rien à exporter pour le moment');return}
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([out.join('\r\n')],{type:'text/calendar'}));a.download='mon-carnet.ics';a.click();toast('Fichier agenda téléchargé');
@@ -735,6 +780,7 @@ $('prof').addEventListener('input',e=>{const t=e.target;
  if(t.dataset.t){(S.theme=S.theme||{})[t.dataset.t]=t.value;applyTheme();saveSoon()}
  else if(t.dataset.cc){const c=cat(t.dataset.cc);if(c){c.color=t.value;saveSoon()}}});
 $('prof').addEventListener('change',e=>{const t=e.target;
+ if(t.id==='nSound'){S.notify.sound=t.value;playSound(t.value);save();return}
  if(t.dataset.t||t.dataset.cc){render();return}
  if(t.id==='nOn'){setNotifOn(t.checked);return}
  const row=t.closest&&t.closest('.nrow');
@@ -748,7 +794,7 @@ $('prof').addEventListener('click',e=>{
  if(e.target.closest('#nTest')){(async()=>{if(!('Notification' in window)){toast('Notifications indisponibles ici');return}
   let p=Notification.permission;if(p==='default')p=await Notification.requestPermission();
   if(p!=='granted'){toast('Notifications non autorisées');render();return}
-  await showN({title:'Test de rappel',body:'Voici à quoi ressembleront vos rappels.',tag:'carnet-test'});toast('Notification envoyée');render()})();return}
+  await showN({title:'Médicament',body:'Doliprane · 1 comprimé\n'+new Date().toTimeString().slice(0,5),tag:'carnet-test-'+Date.now()});toast('Notification envoyée');render()})();return}
  if(e.target.closest('#nIcs')){exportICS();return}
 });
 // ---------- calendrier
@@ -756,7 +802,7 @@ let cal=null;
 const DOW=['lun','mar','mer','jeu','ven','sam','dim'];
 function occMap(a,b){
  const M={};
- S.items.forEach(i=>{const c=cat(i.cat);if(!c||i.done)return;let ds=[];
+ S.items.forEach(i=>{const c=cat(i.cat);if(!c||i.done||typ(c).nocal)return;let ds=[];
   if(typ(c).eff){const d=+i.bd,m=MONTHS.indexOf(i.bm);if(d&&m>=0){for(let y=+a.slice(0,4);y<=+b.slice(0,4);y++){const x=`${y}-${pad(m+1)}-${pad(d)}`;if(x>=a&&x<=b)ds.push(x)}}}
   else ds=occIn(i.date,i.rep,a,b);
   ds.forEach(x=>(M[x]=M[x]||[]).push({i,c}))});
@@ -861,24 +907,39 @@ const standalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)'
 const isIos=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const isAndroid=/android/i.test(ua),isEdge=/edg\//i.test(ua),isFF=/firefox|fxios/i.test(ua);
 const isSafariMac=!isIos&&/safari/i.test(ua)&&!/chrome|chromium|edg\//i.test(ua);
-function showInstall(v){['install','install2'].forEach(id=>$(id).hidden=!v)}
+function showInstall(v){['install','install2'].forEach(id=>$(id).hidden=!v);$('ibar').hidden=!v||!!(typeof S!=='undefined'&&S&&S.ui&&S.ui.noInstall);$('ibtxt').textContent=isIos||isAndroid?'Installez l’application sur ce téléphone':'Installez l’application sur cet ordinateur'}
 showInstall(!standalone());
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;showInstall(true)});
 window.addEventListener('appinstalled',()=>{showInstall(false);toast('Application installée')});
-function installHelp(){
+const inApp=/FBAN|FBAV|Instagram|Messenger|Snapchat|TikTok|MicroMessenger|Line\/|GSA\/|; wv\)/i.test(ua);
+const li=(ok,t)=>`<li class="${ok?'ok':'ko'}">${ic(ok?'check':'alert')}<span style="color:var(--ink)">${t}</span></li>`;
+async function installHelp(){
  let t,h;
- if(isIos){t='Installer sur iPhone ou iPad';h=['Ouvrez ce site dans <b>Safari</b>.','Touchez le bouton <b>Partager</b> (un carré avec une flèche vers le haut).','Faites défiler et touchez <b>Sur l’écran d’accueil</b>.','Touchez <b>Ajouter</b>.']}
+ const safariIos=isIos&&!/CriOS|FxiOS|EdgiOS/.test(ua);
+ if(isIos){t='Installer sur iPhone ou iPad';h=['Ouvrez ce site dans <b>Safari</b>'+(safariIos?'.':' (vous êtes dans un autre navigateur : copiez le lien ci-dessous et collez-le dans Safari).'),'Touchez le bouton <b>Partager</b> : un carré avec une flèche vers le haut, en bas de l’écran (en haut à droite sur iPad).','Faites défiler le menu et touchez <b>Sur l’écran d’accueil</b>.','Touchez <b>Ajouter</b> en haut à droite.']}
  else if(isAndroid){t='Installer sur Android';h=['Ouvrez ce site dans <b>Chrome</b>.','Touchez les <b>trois points</b> en haut à droite.','Touchez <b>Installer l’application</b> (ou « Ajouter à l’écran d’accueil »).','Confirmez avec <b>Installer</b>.']}
  else if(isSafariMac){t='Installer sur Mac';h=['Dans le menu <b>Fichier</b>, choisissez <b>Ajouter au Dock</b>.','Confirmez avec <b>Ajouter</b>.']}
  else if(isFF){t='Installer sur ordinateur';h=['Firefox ne sait pas installer ce genre d’application sur ordinateur.','Ouvrez ce site dans <b>Chrome</b> ou <b>Edge</b>, puis suivez les étapes d’installation.']}
  else if(isEdge){t='Installer sur ordinateur (Edge)';h=['Cliquez sur les <b>trois points</b> en haut à droite.','Choisissez <b>Applications</b>, puis <b>Installer ce site en tant qu’application</b>.','Confirmez avec <b>Installer</b>.']}
  else{t='Installer sur ordinateur';h=['Cherchez l’<b>icône d’installation</b> à droite de la barre d’adresse (un petit écran avec une flèche).','Sinon, ouvrez le menu (les <b>trois points</b>) et choisissez <b>Installer Mon carnet</b>.','Confirmez avec <b>Installer</b>.']}
  $('hT').textContent=t;
- $('hB').innerHTML='<ol style="padding-left:22px;line-height:1.7;margin:0">'+h.map(x=>'<li>'+x+'</li>').join('')+'</ol><p style="color:var(--mute);font-size:.9rem">Il faut ouvrir le site depuis son adresse (https://…), pas depuis un fichier.</p>';
+ const warn=inApp?`<div class="warn" style="margin:0 0 12px"><b>Vous êtes dans le navigateur d’une autre application</b> (Facebook, WhatsApp, Instagram…). L’installation y est impossible. Copiez le lien, puis ouvrez-le dans ${isIos?'Safari':'Chrome'}.</div>`:'';
+ const draw=(rows)=>{$('hB').innerHTML=warn+'<ol style="padding-left:22px;line-height:1.7;margin:0 0 14px">'+h.map(x=>'<li>'+x+'</li>').join('')+'</ol><div class="bar" style="margin-bottom:14px"><button class="btn ghost" id="copyLink">Copier le lien du site</button></div><div style="font-weight:700;margin-bottom:4px">Vérification</div><ul class="dchk">'+rows+'</ul>'};
+ draw(li(true,'Vérification en cours…'));
  $('dHelp').showModal();
+ const files=['manifest.webmanifest','icon-192.png','icon-512.png','sw.js'];
+ const res=await Promise.all(files.map(f=>fetch(f,{cache:'no-store'}).then(r=>r.ok).catch(()=>false)));
+ let reg=false;try{reg=!!(navigator.serviceWorker&&await navigator.serviceWorker.getRegistration())}catch(e){}
+ let rows=li(location.protocol==='https:'||location.hostname==='localhost','Adresse sécurisée (https)')+li(!inApp,'Ouvert dans un vrai navigateur')+li(standalone()===false,'Pas encore installée sur cet appareil')+li(reg,'Mode hors connexion actif');
+ files.forEach((f,k)=>{rows+=li(res[k],res[k]?'Fichier '+f+' présent':'<b>Fichier '+f+' introuvable</b> : ajoutez-le sur GitHub, à côté de index.html')});
+ draw(rows);
 }
+document.addEventListener('click',e=>{if(e.target.closest('#copyLink')){const u=location.href.split('#')[0];(navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>toast('Lien copié'),()=>{prompt('Copiez ce lien :',u)})}});
 async function install(){if(dp){dp.prompt();const r=await dp.userChoice;dp=null;if(r.outcome==='accepted')showInstall(false)}else installHelp()}
-$('install').onclick=install;$('install2').onclick=install;
+$('install').onclick=install;$('install2').onclick=install;$('ibtn').onclick=install;
+$('nbtn').onclick=()=>setNotifOn(true);
+$('ibx').innerHTML=ic('x');
+$('ibx').onclick=()=>{S.ui.noInstall=true;save();$('ibar').hidden=true};
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(r=>r.update()).catch(()=>{}));
 $('deco').innerHTML=ic('book');
 $('ver').textContent='Version '+VERSION;
