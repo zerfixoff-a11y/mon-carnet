@@ -319,7 +319,7 @@ nav .ic.has{padding:0;overflow:hidden}
 
 <script>
 const KEY='mon-carnet-v1';
-const VERSION='11';
+const VERSION='12';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -391,9 +391,12 @@ const T={
  contact:{n:'Contact',tl:'Nom (ex : Dr Martin)',nd:1,
   f:[{k:'role',l:'Rôle (médecin, voisin…)'},{k:'tel',l:'Téléphone',t:'tel'},{k:'mail',l:'E-mail',t:'email'},{k:'addr',l:'Adresse'}],
   m:i=>[line(chip(i.role)),line(i.tel?tel(i.tel):''),line(i.mail?`<a href="mailto:${esc(i.mail)}">${ic('mail')}${esc(i.mail)}</a>`:''),line(i.addr?ic('pin')+esc(i.addr):'')]},
- med:{n:'Médicament',tl:'Médicament (ex : Doliprane)',nd:1,nocal:1,
-  f:[{k:'dose',l:'Dose',ph:'ex : 1 comprimé'},{k:'t1',l:'Heure de prise n°1',t:'time',def:'08:00'},{k:'t2',l:'Heure de prise n°2 (facultatif)',t:'time'},{k:'t3',l:'Heure de prise n°3 (facultatif)',t:'time'},{k:'t4',l:'Heure de prise n°4 (facultatif)',t:'time'},{k:'rep',l:'Répéter',t:'sel',o:['Chaque jour','Chaque semaine','Chaque mois']},{k:'date',l:'À partir du',t:'date',def:'today'},{k:'end',l:'Jusqu’au (facultatif)',t:'date'},{k:'stock',l:'Il en reste (boîtes ou comprimés)',t:'number'},NOTE],
-  m:i=>[line(chip(i.dose)+(i.when||[]).map(w=>chip(w)).join('')),line([i.t1,i.t2,i.t3,i.t4].filter(Boolean).map(x=>ic('clock')+esc(x)).join('   ')),line(i.end?'Jusqu’au '+dl(i.end):''),line(i.stock!==''&&i.stock!=null?'Reste : '+esc(i.stock):''),line(esc(i.note))]},
+ med:{n:'Médicament',tl:'Nom du médicament (ex : Doliprane)',nd:1,nocal:1,
+  f:[{k:'dose',l:'Dose',ph:'ex : 1 comprimé'},{k:'t1',l:'À quelle heure le prendre ?',t:'time',def:'08:00'},{k:'t2',l:'2e prise dans la journée (facultatif)',t:'time'},{k:'t3',l:'3e prise (facultatif)',t:'time'},{k:'t4',l:'4e prise (facultatif)',t:'time'},
+   {k:'rep',l:'Fréquence',t:'sel',o:[['Chaque jour','Tous les jours'],['Chaque semaine','Une fois par semaine']]},
+   {k:'dur',l:'Pendant combien de temps ?',t:'sel',o:[['','Tous les jours, jusqu’à ce que j’arrête'],['3','3 jours'],['5','5 jours'],['7','1 semaine'],['10','10 jours'],['14','2 semaines'],['30','1 mois'],['date','Jusqu’à une date précise']]},
+   {k:'end',l:'Dernier jour de traitement',t:'date',when:['dur','date']},{k:'stock',l:'Il en reste (boîtes ou comprimés)',t:'number'},NOTE],
+  m:i=>[line(chip(i.dose)+(i.when||[]).map(w=>chip(w)).join('')),line([i.t1,i.t2,i.t3,i.t4].filter(Boolean).map(x=>ic('clock')+esc(x)).join('   ')),line(ic('repeat')+(i.rep==='Chaque semaine'?'Une fois par semaine':'Tous les jours')+(i.end?' · jusqu’au '+dl(i.end):' · jusqu’à ce que vous arrêtiez')),line(i.stock!==''&&i.stock!=null?'Reste : '+esc(i.stock):''),line(esc(i.note))]},
  note:{n:'Note libre',tl:'Titre',nd:1,f:[{k:'note',l:'Texte',t:'area'}],m:i=>[line(esc(i.note).replace(/\n/g,'<br>'))]},
  libre:{n:'Fiche simple',tl:'Quoi ?',dn:'Fait',
   f:[{k:'where',l:'Où c’est rangé ?'},{k:'date',l:'Date',t:'date'},NOTE],
@@ -493,7 +496,7 @@ function cardHTML(i0,k,showCat){
  const tag=showCat?`<div class="m"><span class="chip">${ic(ct.icon)}${esc(ct.name)}</span></div>`:'';
  return `<div class="item ${i.done?'done':''} ${late?'late':''}" data-i="${i.id}" style="--ac:${acc(ct)};--d:${Math.min(k,10)*.04}s">
   ${t.lead?t.lead(i):''}${t.nd?'':`<input type="checkbox" ${i.done?'checked':''} aria-label="${t.dn||'Fait'}" title="${t.dn||'Fait'}">`}
-  <div class="body" tabindex="0"><div class="t">${esc(i.title)}</div>${tag}${t.m(i).join('')}${i.time&&!['rdv','med'].includes(ct.type)?`<div class="m">${ic('clock')}${esc(i.time)}</div>`:''}${i.rep&&i.rep!=='Jamais'?`<div class="m">${ic('repeat')}${esc(i.rep)}</div>`:''}${late?`<div class="m" style="color:var(--warn);font-weight:700">${ic('alert')}Date dépassée</div>`:''}</div>
+  <div class="body" tabindex="0"><div class="t">${esc(i.title)}</div>${tag}${t.m(i).join('')}${i.time&&!['rdv','med'].includes(ct.type)?`<div class="m">${ic('clock')}${esc(i.time)}</div>`:''}${i.rep&&i.rep!=='Jamais'&&ct.type!=='med'?`<div class="m">${ic('repeat')}${esc(i.rep)}</div>`:''}${late?`<div class="m" style="color:var(--warn);font-weight:700">${ic('alert')}Date dépassée</div>`:''}</div>
   ${t.right?t.right(i):''}<button class="trash" aria-label="Supprimer cette fiche" title="Supprimer">${ic('trash')}</button></div>`}
 function renderHome(){
  const open=S.items.filter(i=>{const t=typ(cat(i.cat));return cat(i.cat)&&!i.done&&ed(i)&&(!t.nd||t.eff)});
@@ -555,12 +558,17 @@ function buildFields(catId,vals){
  const t=typ(cat(catId));vals=vals||{};
  let h=`<label for="f_title">${t.tl}</label><div class="mw"><input id="f_title" required value="${esc(vals.title)}">${micB('f_title')}</div>`;
  t.f.forEach(f=>{let v=vals[f.k];if(v===undefined&&!vals.id&&f.def)v=f.def==='today'?today:f.def;
-  if(f.t==='area')h+=`<label for="f_${f.k}">${f.l}</label><div class="mw"><textarea id="f_${f.k}" rows="3">${esc(v)}</textarea>${micB('f_'+f.k)}</div>`;
-  else if(f.t==='sel')h+=`<label for="f_${f.k}">${f.l}</label><select id="f_${f.k}">${f.o.map(o=>{const val=Array.isArray(o)?o[0]:o,lab=Array.isArray(o)?o[1]:o;return `<option value="${esc(val)}" ${String(val)===String(v)?'selected':''}>${esc(lab)}</option>`}).join('')}</select>`;
-  else if(f.t==='multi')h+=`<label>${f.l}</label><div class="chk">${f.o.map(o=>`<label><input type="checkbox" name="f_${f.k}" value="${o}" ${(v||[]).includes(o)?'checked':''}>${o}</label>`).join('')}</div>`;
-  else h+=`<label for="f_${f.k}">${f.l}</label><input id="f_${f.k}" type="${f.t==='number'?'number':f.t||'text'}" ${f.t==='number'?'step="any" inputmode="decimal"'+(f.max?` min="${f.min}" max="${f.max}"`:''):''} placeholder="${esc(f.ph||'')}" value="${esc(v)}">`});
- $('fields').innerHTML=h;
+  if(f.k==='dur'&&v===undefined&&vals.end)v='date';
+  let x;
+  if(f.t==='area')x=`<label for="f_${f.k}">${f.l}</label><div class="mw"><textarea id="f_${f.k}" rows="3">${esc(v)}</textarea>${micB('f_'+f.k)}</div>`;
+  else if(f.t==='sel')x=`<label for="f_${f.k}">${f.l}</label><select id="f_${f.k}">${f.o.map(o=>{const val=Array.isArray(o)?o[0]:o,lab=Array.isArray(o)?o[1]:o;return `<option value="${esc(val)}" ${String(val)===String(v)?'selected':''}>${esc(lab)}</option>`}).join('')}</select>`;
+  else if(f.t==='multi')x=`<label>${f.l}</label><div class="chk">${f.o.map(o=>`<label><input type="checkbox" name="f_${f.k}" value="${o}" ${(v||[]).includes(o)?'checked':''}>${o}</label>`).join('')}</div>`;
+  else x=`<label for="f_${f.k}">${f.l}</label><input id="f_${f.k}" type="${f.t==='number'?'number':f.t||'text'}" ${f.t==='number'?'step="any" inputmode="decimal"'+(f.max?` min="${f.min}" max="${f.max}"`:''):''} placeholder="${esc(f.ph||'')}" value="${esc(v)}">`;
+  h+=f.when?`<div class="cond" data-dep="${f.when[0]}" data-val="${f.when[1]}">${x}</div>`:x});
+ $('fields').innerHTML=h;syncCond();
 }
+function syncCond(){document.querySelectorAll('#fields .cond').forEach(c=>{const el=$('f_'+c.dataset.dep);c.hidden=!el||el.value!==c.dataset.val})}
+$('fields').addEventListener('change',syncCond);
 function openItem(id,forceCat,pre){
  editing=id?S.items.find(i=>i.id===id):null;
  $('iCat').innerHTML=S.cats.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');
@@ -580,6 +588,7 @@ $('add').onclick=()=>openItem();
 $('iCancel').onclick=()=>$('dItem').close();
 $('fItem').onsubmit=()=>{
  const d=readFields();d.cat=$('iCat').value;
+ if(typ(cat(d.cat))===T.med){if(!d.date)d.date=(editing&&editing.date)||today;if(d.dur==='date'){}else if(+d.dur>0)d.end=addDay(d.date,+d.dur-1);else d.end=''}
  if(editing)Object.assign(editing,d);else S.items.push({id:uid(),done:false,...d});
  render();toast('Enregistré');
 };
